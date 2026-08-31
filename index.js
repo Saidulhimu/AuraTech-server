@@ -25,7 +25,7 @@ const client = new MongoClient(url, {
 const dbconnect = async () => {
   try {
     await client.connect(); 
-    // Ping দিয়ে নিশ্চিত হওয়া যে ডাটাবেজ সচল আছে
+  
     await client.db("admin").command({ ping: 1 });
     console.log('MongoDB connected successfully');
   } catch (error) {
@@ -43,7 +43,7 @@ app.get('/', (req, res) => {
 /* JWT Authentication Endpoint */
 app.post('/authentication', async (req, res) => {
   try {
-    const user = req.body; // user Object (e.g., { email: 'user@example.com' })
+    const user = req.body; 
     if (!user || !user.email) {
       return res.status(400).send({ message: 'Email is required' });
     }
