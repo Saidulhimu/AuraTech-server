@@ -22,12 +22,31 @@ const client = new MongoClient(url, {
   }
 });
 
+const usersCollection = client.db("auratech").collection("users");
+const productsCollection = client.db("auratech").collection("products");
+const ordersCollection = client.db("auratech").collection("orders");
+
 const dbconnect = async () => {
   try {
     await client.connect(); 
   
     await client.db("admin").command({ ping: 1 });
     console.log('MongoDB connected successfully');
+
+    //insert user data into the database
+    app.post('/users', async (req, res) => {
+      const user = req.body;
+      const query = { email: user.email };
+      const existingUser = await usersCollection.findOne(query);
+
+      if (existingUser) {
+        return res.send({ message: 'User already exists' });
+      }
+
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+
   } catch (error) {
     console.log('MongoDB connection error:', error.name, error.message);
   }
