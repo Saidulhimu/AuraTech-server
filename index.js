@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const { MongoClient, ServerApiVersion } = require('mongodb'); 
+const { MongoClient, ServerApiVersion } = require('mongodb');
 require('dotenv').config();
 
 const app = express();
@@ -22,52 +22,61 @@ const client = new MongoClient(url, {
   }
 });
 
-const usersCollection = client.db("auratech").collection("users");
-const productsCollection = client.db("auratech").collection("products");
-const ordersCollection = client.db("auratech").collection("orders");
+// Database & Collections (Global Scope)
+const db = client.db("auratech");
+const usersCollection = db.collection("users");
+const productsCollection = db.collection("products");
+const ordersCollection = db.collection("orders");
 
-const dbconnect = async () => {
+// Connect to MongoDB Database
+async function dbConnect() {
   try {
-    await client.connect(); 
-  
-    await client.db("admin").command({ ping: 1 });
+    await client.connect();
     console.log('MongoDB connected successfully');
-
-    //insert user data into the database
-    app.post('/users', async (req, res) => {
-      const user = req.body;
-      const query = { email: user.email };
-      const existingUser = await usersCollection.findOne(query);
-
-      if (existingUser) {
-        return res.send({ message: 'User already exists' });
-      }
-
-      const result = await usersCollection.insertOne(user);
-      res.send(result);
-    });
-
   } catch (error) {
-    console.log('MongoDB connection error:', error.name, error.message);
+    console.error('MongoDB connection error:', error.name, error.message);
   }
-};
+}
+dbConnect();
 
-dbconnect();
-
-/* API Routes */
+/* ------------------- ROOT ROUTE ------------------- */
 app.get('/', (req, res) => {
   res.send('Server is running');
+});
+
+/* ------------------- USER API ROUTES ------------------- */
+
+// Post user data into the database
+app.post('/users', async (req, res) => {
+  try {
+    const user = req.body;
+    if (!user.email) {
+      return res.status(400).send({ message: 'Email is required' });
+    }
+
+    const query = { email: user.email };
+    const existingUser = await usersCollection.findOne(query);
+
+    if (existingUser) {
+      return res.send({ message: 'User already exists', insertedId: null });
+    }
+
+    const result = await usersCollection.insertOne(user);
+    res.send(result);
+  } catch (err) {
+    console.error('Error inserting user:', err);
+    res.status(500).send({ message: 'Internal Server Error' });
+  }
 });
 
 /* JWT Authentication Endpoint */
 app.post('/authentication', async (req, res) => {
   try {
-    const user = req.body; 
+    const user = req.body;
     if (!user || !user.email) {
       return res.status(400).send({ message: 'Email is required' });
     }
-    
-    // JWT Token Generation
+
     const token = jwt.sign(user, process.env.ACCESS_KEY_TOKEN, { expiresIn: '10d' });
     res.send({ token });
   } catch (error) {
