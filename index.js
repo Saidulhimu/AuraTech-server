@@ -1,14 +1,18 @@
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 4000;
 
 /* middleware */
-app.use(cors());
+app.use(cors({
+    origin: ['http://localhost:5173'],
+    credentials: true,
+    optionsSuccessStatus: 200,
+}));
 app.use(express.json());
 
 /* mongoDB Connection URI */
@@ -22,7 +26,7 @@ const client = new MongoClient(url, {
   }
 });
 
-// Database & Collections (Global Scope)
+// Database & Collections 
 const db = client.db("auratech");
 const usersCollection = db.collection("users");
 const productsCollection = db.collection("products");
@@ -46,6 +50,20 @@ app.get('/', (req, res) => {
 
 /* ------------------- USER API ROUTES ------------------- */
 
+// Get User by Email
+app.get('/user/:email', async (req, res) => {
+  try {
+    const query = { email: req.params.email };
+    const user = await usersCollection.findOne(query);
+    if (!user) {
+      return res.status(404).send({ message: 'User not found' });
+    }
+    res.send(user);
+  } catch (error) {
+    res.status(500).send({ message: 'Server error', error: error.message });
+  }
+});
+
 // Post user data into the database
 app.post('/users', async (req, res) => {
   try {
@@ -61,7 +79,13 @@ app.post('/users', async (req, res) => {
       return res.send({ message: 'User already exists', insertedId: null });
     }
 
-    const result = await usersCollection.insertOne(user);
+    const newUser = {
+      ...user,
+      role: user.role || 'buyer',
+      createdAt: new Date()
+    };
+
+    const result = await usersCollection.insertOne(newUser);
     res.send(result);
   } catch (err) {
     console.error('Error inserting user:', err);
@@ -69,7 +93,7 @@ app.post('/users', async (req, res) => {
   }
 });
 
-/* JWT Authentication Endpoint */
+/* ------------------- JWT AUTHENTICATION ------------------- */
 app.post('/authentication', async (req, res) => {
   try {
     const user = req.body;
